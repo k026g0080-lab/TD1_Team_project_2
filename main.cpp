@@ -1,12 +1,17 @@
 #include <Novice.h>
+#include "map.h"
 
-const char kWindowTitle[] = "LC1D_23_フジサワ_ヒナタ_タイトル";
+const char kWindowTitle[] = "タイトル";
+
+//マップのブランチです
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 	// ライブラリの初期化
-	Novice::Initialize(kWindowTitle, 1280, 720);
+	Novice::Initialize(kWindowTitle, 1920, 1080);
+
+	Map map;
 
 	// キー入力結果を受け取る箱
 	char keys[256] = {0};
@@ -35,7 +40,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		/// ↓描画処理ここから
 		///
 
-
+		map.Draw();
 
 		///
 		/// ↑描画処理ここまで
