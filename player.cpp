@@ -29,7 +29,7 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
     x_ = std::clamp(x_, 0.0f, 1920.0f - width_);
 
     // ジャンプ
-    if (keys[DIK_SPACE] && !preKeys[DIK_SPACE] && isGround_) {
+    if (keys[DIK_W] && !preKeys[DIK_W] && isGround_) {
 
         velocityY_ = jumpPower_;
         isGround_ = false;
@@ -37,9 +37,6 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
 
     // 重力
     velocityY_ += gravity_;
-
-    // 移動前のY座標
-    float oldY = y_;
 
     // 縦移動
     y_ += velocityY_;

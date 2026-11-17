@@ -25,12 +25,12 @@ private:
     float height_ = 64.0f;
 
     // 移動速度
-    float speed_ = 6.0f;
+    float speed_ = 15.0f;
 
     // ジャンプ・重力
     float velocityY_ = 0.0f;
-    float gravity_ = 0.8f;
-    float jumpPower_ = -18.0f;
+    float gravity_ = 1.0f;
+    float jumpPower_ = -30.0f;
 
     // 地面にいるか
     bool isGround_ = false;
