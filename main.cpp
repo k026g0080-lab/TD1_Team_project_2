@@ -1,7 +1,7 @@
 #include <Novice.h>
 #include "map.h"
 
-const char kWindowTitle[] = "LC1D_23_フジサワ_ヒナタ_タイトル";
+const char kWindowTitle[] = "タイトル";
 
 //マップのブランチです
 
