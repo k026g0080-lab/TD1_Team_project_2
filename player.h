@@ -53,7 +53,7 @@ public:
     int beamDuration_ = 8;
 
     // 連射間隔
-    int shotInterval_ = 20;
+    int shotInterval_ = 15;
 
     // 次の発射までの時間
     int shotTimer_ = 0;

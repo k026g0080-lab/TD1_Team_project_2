@@ -4,7 +4,7 @@
 
 const char kWindowTitle[] = "タイトル";
 
-//プレイヤーのブランチ
+//ボスのブランチ
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
@@ -47,6 +47,16 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		map.Draw();
 
 		player.Draw();
+
+		Novice::DrawBox(
+			1500,
+			340,
+			300,
+			300,
+			0.0f,
+			BLACK,
+			kFillModeSolid
+		);
 
 		///
 		/// ↑描画処理ここまで
