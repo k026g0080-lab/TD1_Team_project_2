@@ -83,4 +83,14 @@ private:
     bool isGround_ = false;
 
     int beamTexture_ = -1;
+
+    float aimAngle_ = 0.0f;
+    float aimDistance_ = 100.0f; //標準の距離
+    float aimSpeed_ = 30.0f;
+
+    int preMouseX_ = 0;
+    int preMouseY_ = 0;
+    float aimX_ = 960.0f;
+    float aimY_ = 540.0f;
+    bool isMouseWarped_ = false; 
 };

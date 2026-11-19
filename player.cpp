@@ -1,9 +1,13 @@
 #include "player.h"
 #include <Novice.h>
+#define NOMINMAX
+#include <Windows.h>
 #include <algorithm>
 #include <cmath>
 
+// ==========================================
 // 初期化
+// ==========================================
 void Player::Initialize() {
 
     x_ = 200.0f;
@@ -11,6 +15,12 @@ void Player::Initialize() {
 
     velocityY_ = 0.0f;
     isGround_ = false;
+
+    // 照準の初期位置（1920x1080の中央）
+    aimX_ = 960.0f;
+    aimY_ = 540.0f;
+    Novice::GetMousePosition(&preMouseX_, &preMouseY_);
+    isMouseWarped_ = false;
 
     // 弾を初期化
     for (int i = 0; i < kMaxBullets; i++) {
@@ -25,18 +35,25 @@ void Player::Initialize() {
 // 更新
 void Player::Update(const char* keys, const char* preKeys, const Map& map) {
 
-    int stickX = 0;
-    int stickY = 0;
+    //入力の取得
+    int lStickX = 0;
+    int lStickY = 0;
+    Novice::GetAnalogInputLeft(0, &lStickX, &lStickY);
 
-    Novice::GetAnalogInputLeft(0, &stickX, &stickY);
+    int rStickX = 0;
+    int rStickY = 0;
+    Novice::GetAnalogInputRight(0, &rStickX, &rStickY);
 
-    //左移動
-    if (keys[DIK_A] || stickX < -8000 || Novice::IsPressButton(0, kPadButton2)) {
+    int mouseX = 0;
+    int mouseY = 0;
+    Novice::GetMousePosition(&mouseX, &mouseY);
+
+//プレイヤーの左右移動 & ジャンプ
+    if (keys[DIK_A] || lStickX < -8000 || Novice::IsPressButton(0, kPadButton2)) {
         x_ -= speed_;
     }
 
-    // 右移動
-    if (keys[DIK_D] || stickX > 8000 || Novice::IsPressButton(0, kPadButton3)) {
+    if (keys[DIK_D] || lStickX > 8000 || Novice::IsPressButton(0, kPadButton3)) {
         x_ += speed_;
     }
 
@@ -45,30 +62,67 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
 
     // ジャンプ
     if (((keys[DIK_SPACE] && !preKeys[DIK_SPACE]) || Novice::IsTriggerButton(0, kPadButton10)) && isGround_) {
-
         velocityY_ = jumpPower_;
         isGround_ = false;
     }
 
-    // 射撃クールタイム
+    //照準の操作
+    if (isMouseWarped_) {
+        // カーソルを中央へ戻した直後のフレームは、新しい中央座標を基準として記憶するだけにする
+        preMouseX_ = mouseX;
+        preMouseY_ = mouseY;
+        isMouseWarped_ = false;
+    }
+    else {
+        // 前フレームからの移動量だけを照準に足す
+        int deltaMouseX = mouseX - preMouseX_;
+        int deltaMouseY = mouseY - preMouseY_;
+
+        if (deltaMouseX != 0 || deltaMouseY != 0) {
+            aimX_ += static_cast<float>(deltaMouseX);
+            aimY_ += static_cast<float>(deltaMouseY);
+        }
+
+        preMouseX_ = mouseX;
+        preMouseY_ = mouseY;
+
+        // 見えないカーソルが画面端（端から150px以内）に近づいたら中央へ戻す
+        if (mouseX < 150 || mouseX > 1770 || mouseY < 150 || mouseY > 930) {
+            HWND hwnd = GetActiveWindow();
+            if (hwnd != nullptr) {
+                POINT pt = { 960, 540 };
+                ClientToScreen(hwnd, &pt);
+                SetCursorPos(pt.x, pt.y);
+                isMouseWarped_ = true; // 次の1フレームはワープ後の座標合わせに使う
+            }
+        }
+    }
+
+    // 右スティックの傾きで照準を移動（デッドゾーン: 10000）
+    if (std::abs(rStickX) > 10000) {
+        aimX_ += (rStickX / 32767.0f) * aimSpeed_;
+    }
+    if (std::abs(rStickY) > 10000) {
+        aimY_ += (rStickY / 32767.0f) * aimSpeed_;
+    }
+
+    // 照準を画面内に制限（1920x1080）
+    aimX_ = std::clamp(aimX_, 0.0f, 1920.0f);
+    aimY_ = std::clamp(aimY_, 0.0f, 1080.0f);
+
+    // 射撃
     if (shotTimer_ > 0) {
         shotTimer_--;
     }
 
-    // マウス座標
-    int mouseX = 0;
-    int mouseY = 0;
-
-    Novice::GetMousePosition(&mouseX, &mouseY);
-
-    // 左クリック長押しで射撃
-    if (Novice::IsPressMouse(0)  ||  Novice::IsPressButton(0, kPadButton9) && shotTimer_ <= 0) {
+    if ((Novice::IsPressMouse(0) || Novice::IsPressButton(0, kPadButton9)) && shotTimer_ <= 0) {
 
         float centerX = x_ + width_ / 2.0f;
         float centerY = y_ + height_ / 2.0f;
 
-        float directionX = mouseX - centerX;
-        float directionY = mouseY - centerY;
+        // 緑の照準（aimX_, aimY_）の方向へ撃つ
+        float directionX = aimX_ - centerX;
+        float directionY = aimY_ - centerY;
 
         float length = sqrtf(
             directionX * directionX +
@@ -97,31 +151,26 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
                 float currentY = centerY;
 
                 float remainingRange = beamRange_;
-
                 int reflectionCount = 0;
 
-                // 最大5回反射
+                // 最大反射回数までループ
                 while (bullet.segmentCount < Bullet::kMaxReflections + 1) {
 
-                    BeamSegment& segment =
-                        bullet.segments[bullet.segmentCount];
+                    BeamSegment& segment = bullet.segments[bullet.segmentCount];
 
                     segment.startX = currentX;
                     segment.startY = currentY;
-
                     segment.endX = currentX;
                     segment.endY = currentY;
 
                     bool hitWall = false;
                     bool hitScreenEdge = false;
-
                     float traveled = 0.0f;
 
                     // ビームの進行方向を調べる
                     while (traveled < remainingRange) {
 
                         float step = 2.0f;
-
                         if (step > remainingRange - traveled) {
                             step = remainingRange - traveled;
                         }
@@ -132,21 +181,18 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
                         // 画面外なら終了
                         if (nextX < 0.0f || nextX >= 1920.0f ||
                             nextY < 0.0f || nextY >= 1080.0f) {
-
                             hitScreenEdge = true;
                             break;
                         }
 
                         // 壁との当たり判定
                         if (map.IsSolidWorld(nextX, nextY)) {
-
                             hitWall = true;
                             break;
                         }
 
                         currentX = nextX;
                         currentY = nextY;
-
                         traveled += step;
 
                         segment.endX = currentX;
@@ -169,15 +215,8 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
                     }
 
                     // X方向とY方向の衝突を確認
-                    bool hitX = map.IsSolidWorld(
-                        currentX + directionX * 2.0f,
-                        currentY
-                    );
-
-                    bool hitY = map.IsSolidWorld(
-                        currentX,
-                        currentY + directionY * 2.0f
-                    );
+                    bool hitX = map.IsSolidWorld(currentX + directionX * 2.0f, currentY);
+                    bool hitY = map.IsSolidWorld(currentX, currentY + directionY * 2.0f);
 
                     // 左右の壁
                     if (hitX) {
@@ -199,13 +238,12 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
                 }
 
                 shotTimer_ = shotInterval_;
-
                 break;
             }
         }
     }
 
-    // ビームの更新
+    //ビームの更新
     for (int i = 0; i < kMaxBullets; i++) {
 
         if (!bullets_[i].isActive) {
@@ -221,13 +259,10 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
         }
     }
 
-    // 重力
+    // 重力 & 地面との当たり判定
     velocityY_ += gravity_;
-
-    // 縦移動
     y_ += velocityY_;
 
-    // 地面との当たり判定
     if (velocityY_ >= 0.0f) {
 
         float leftX = x_ + 1.0f;
@@ -239,15 +274,12 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
 
             // 着地した地面の上端を取得
             int mapY = static_cast<int>(bottomY) / kMapChipSize;
-
             y_ = static_cast<float>(mapY * kMapChipSize) - height_;
 
             velocityY_ = 0.0f;
             isGround_ = true;
-
         }
         else {
-
             isGround_ = false;
         }
     }
@@ -262,6 +294,7 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
 // 描画
 void Player::Draw() {
 
+    // プレイヤー本体
     Novice::DrawBox(
         static_cast<int>(x_),
         static_cast<int>(y_),
@@ -270,6 +303,13 @@ void Player::Draw() {
         0.0f,
         RED,
         kFillModeSolid
+    );
+
+    // 照準
+    Novice::DrawEllipse(
+        static_cast<int>(aimX_),
+        static_cast<int>(aimY_),
+        10, 10, 0.0f, GREEN, kFillModeSolid
     );
 
     // ビームの描画
@@ -294,7 +334,6 @@ void Player::Draw() {
 
             float dx = segment.endX - segment.startX;
             float dy = segment.endY - segment.startY;
-
             float length = sqrtf(dx * dx + dy * dy);
 
             if (length <= 0.0f) {
@@ -304,40 +343,16 @@ void Player::Draw() {
             // 垂直方向
             float normalX = -dy / length;
             float normalY = dx / length;
-
             float halfWidth = width / 2.0f;
 
-            int leftTopX = static_cast<int>(
-                segment.startX + normalX * halfWidth
-                );
-
-            int leftTopY = static_cast<int>(
-                segment.startY + normalY * halfWidth
-                );
-
-            int rightTopX = static_cast<int>(
-                segment.endX + normalX * halfWidth
-                );
-
-            int rightTopY = static_cast<int>(
-                segment.endY + normalY * halfWidth
-                );
-
-            int leftBottomX = static_cast<int>(
-                segment.startX - normalX * halfWidth
-                );
-
-            int leftBottomY = static_cast<int>(
-                segment.startY - normalY * halfWidth
-                );
-
-            int rightBottomX = static_cast<int>(
-                segment.endX - normalX * halfWidth
-                );
-
-            int rightBottomY = static_cast<int>(
-                segment.endY - normalY * halfWidth
-                );
+            int leftTopX = static_cast<int>(segment.startX + normalX * halfWidth);
+            int leftTopY = static_cast<int>(segment.startY + normalY * halfWidth);
+            int rightTopX = static_cast<int>(segment.endX + normalX * halfWidth);
+            int rightTopY = static_cast<int>(segment.endY + normalY * halfWidth);
+            int leftBottomX = static_cast<int>(segment.startX - normalX * halfWidth);
+            int leftBottomY = static_cast<int>(segment.startY - normalY * halfWidth);
+            int rightBottomX = static_cast<int>(segment.endX - normalX * halfWidth);
+            int rightBottomY = static_cast<int>(segment.endY - normalY * halfWidth);
 
             Novice::DrawQuad(
                 leftTopX, leftTopY,

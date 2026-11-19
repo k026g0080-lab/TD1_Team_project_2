@@ -12,6 +12,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	// ライブラリの初期化
 	Novice::Initialize(kWindowTitle, 1920, 1080);
 
+	Novice::SetMouseCursorVisibility(0);
+
 	Map map;
 
 	// キー入力結果を受け取る箱
