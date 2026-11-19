@@ -1,16 +1,25 @@
 #include <Novice.h>
+#include "player.h"
+#include "map.h"
 
-const char kWindowTitle[] = "LC1D_23_フジサワ_ヒナタ_タイトル";
+const char kWindowTitle[] = "タイトル";
+
+//プレイヤーのブランチ
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 	// ライブラリの初期化
-	Novice::Initialize(kWindowTitle, 1280, 720);
+	Novice::Initialize(kWindowTitle, 1920, 1080);
+
+	Map map;
 
 	// キー入力結果を受け取る箱
 	char keys[256] = {0};
 	char preKeys[256] = {0};
+
+	Player player;
+	player.Initialize();
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -25,7 +34,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		/// ↓更新処理ここから
 		///
 
-
+		player.Update(keys, preKeys, map);
 
 		///
 		/// ↑更新処理ここまで
@@ -35,7 +44,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		/// ↓描画処理ここから
 		///
 
+		map.Draw();
 
+		player.Draw();
 
 		///
 		/// ↑描画処理ここまで
