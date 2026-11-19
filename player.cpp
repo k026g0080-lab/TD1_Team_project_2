@@ -25,13 +25,18 @@ void Player::Initialize() {
 // 更新
 void Player::Update(const char* keys, const char* preKeys, const Map& map) {
 
-    // 左移動
-    if (keys[DIK_A]) {
+    int stickX = 0;
+    int stickY = 0;
+
+    Novice::GetAnalogInputLeft(0, &stickX, &stickY);
+
+    //左移動
+    if (keys[DIK_A] || stickX < -8000 || Novice::IsPressButton(0, kPadButton2)) {
         x_ -= speed_;
     }
 
     // 右移動
-    if (keys[DIK_D]) {
+    if (keys[DIK_D] || stickX > 8000 || Novice::IsPressButton(0, kPadButton3)) {
         x_ += speed_;
     }
 
@@ -39,7 +44,7 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
     x_ = std::clamp(x_, 0.0f, 1920.0f - width_);
 
     // ジャンプ
-    if (keys[DIK_W] && !preKeys[DIK_W] && isGround_) {
+    if (((keys[DIK_SPACE] && !preKeys[DIK_SPACE]) || Novice::IsTriggerButton(0, kPadButton10)) && isGround_) {
 
         velocityY_ = jumpPower_;
         isGround_ = false;
@@ -57,7 +62,7 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
     Novice::GetMousePosition(&mouseX, &mouseY);
 
     // 左クリック長押しで射撃
-    if (Novice::IsPressMouse(0) && shotTimer_ <= 0) {
+    if (Novice::IsPressMouse(0)  ||  Novice::IsPressButton(0, kPadButton9) && shotTimer_ <= 0) {
 
         float centerX = x_ + width_ / 2.0f;
         float centerY = y_ + height_ / 2.0f;
