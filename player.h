@@ -2,6 +2,30 @@
 
 #include "map.h"
 
+struct BeamSegment {
+    float startX;
+    float startY;
+
+    float endX;
+    float endY;
+};
+
+struct Bullet {
+
+    static const int kMaxReflections = 5;
+
+    // 最初のビーム + 反射後の5本
+    BeamSegment segments[kMaxReflections + 1];
+
+    // 実際に使用している線分の数
+    int segmentCount;
+
+    // 表示時間
+    int timer;
+
+    bool isActive;
+};
+
 class Player {
 public:
 
@@ -13,6 +37,29 @@ public:
 
     // 描画
     void Draw();
+
+    // 弾の設定
+    static const int kMaxBullets = 100;
+
+    Bullet bullets_[kMaxBullets] = {};
+
+    // ビームの最大射程
+    float beamRange_ = 2000.0f;
+
+    // ビームの初期の太さ
+    float beamWidth_ = 12.0f;
+
+    // ビームの表示時間
+    int beamDuration_ = 8;
+
+    // 連射間隔
+    int shotInterval_ = 20;
+
+    // 次の発射までの時間
+    int shotTimer_ = 0;
+
+    // 最大反射回数
+    int maxReflections_ = 5;
 
 private:
 
@@ -34,4 +81,6 @@ private:
 
     // 地面にいるか
     bool isGround_ = false;
+
+    int beamTexture_ = -1;
 };
