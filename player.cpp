@@ -33,6 +33,11 @@ void Player::Initialize() {
 // 更新
 void Player::Update(const char* keys, const char* preKeys, const Map& map) {
 
+    while (map.IsSolidWorld(x_ + width_ / 2.0f, y_ + height_ / 2.0f) && y_ > kMapChipSize * 2) {
+        y_ -= static_cast<float>(kMapChipSize);
+        velocityY_ = 0.0f;
+    }
+
     //入力の取得
     int lStickX = 0;
     int lStickY = 0;
@@ -46,17 +51,49 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
     int mouseY = 0;
     Novice::GetMousePosition(&mouseX, &mouseY);
 
-//プレイヤーの左右移動 & ジャンプ
+    // -----------------------------------------
+    // 1. プレイヤーの左右移動 & マップ（壁）との当たり判定
+    // -----------------------------------------
+    float moveX = 0.0f;
     if (keys[DIK_A] || lStickX < -8000 || Novice::IsPressButton(0, kPadButton2)) {
-        x_ -= speed_;
+        moveX -= speed_;
+    }
+    if (keys[DIK_D] || lStickX > 8000 || Novice::IsPressButton(0, kPadButton3)) {
+        moveX += speed_;
     }
 
-    if (keys[DIK_D] || lStickX > 8000 || Novice::IsPressButton(0, kPadButton3)) {
-        x_ += speed_;
-    }
+    x_ += moveX;
 
     // 画面外に出ないようにする
     x_ = std::clamp(x_, 0.0f, 1920.0f - width_);
+
+    // 上下ギリギリで床・天井に引っかからないよう 1.0f だけ内側にマージンを取る
+    float topY = y_ + 1.0f;
+    float midY = y_ + height_ / 2.0f;
+    float bottomY = y_ + height_ - 1.0f;
+
+    if (moveX > 0.0f) {
+        // 右移動中：右辺の 上・中・下 をチェック
+        float rightX = x_ + width_;
+        if (map.IsSolidWorld(rightX, topY) ||
+            map.IsSolidWorld(rightX, midY) ||
+            map.IsSolidWorld(rightX, bottomY)) {
+
+            int mapX = static_cast<int>(std::floor(rightX / kMapChipSize));
+            x_ = static_cast<float>(mapX * kMapChipSize) - width_;
+        }
+    }
+    else if (moveX < 0.0f) {
+        // 左移動中：左辺の 上・中・下 をチェック
+        float leftX = x_;
+        if (map.IsSolidWorld(leftX, topY) ||
+            map.IsSolidWorld(leftX, midY) ||
+            map.IsSolidWorld(leftX, bottomY)) {
+
+            int mapX = static_cast<int>(std::floor(leftX / kMapChipSize));
+            x_ = static_cast<float>((mapX + 1) * kMapChipSize);
+        }
+    }
 
     // ジャンプ
     if (((keys[DIK_SPACE] && !preKeys[DIK_SPACE]) || Novice::IsTriggerButton(0, kPadButton10)) && isGround_) {
@@ -64,7 +101,58 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
         isGround_ = false;
     }
 
-    //照準の操作
+    // -----------------------------------------
+    // 2. 重力 & マップ（床・天井）との当たり判定
+    // -----------------------------------------
+    velocityY_ += gravity_;
+    y_ += velocityY_;
+
+    float leftX = x_ + 1.0f;
+    float midX = x_ + width_ / 2.0f;
+    float rightX = x_ + width_ - 1.0f;
+
+    if (velocityY_ >= 0.0f) {
+        // 落下中・接地中：下辺の 左・中・右 をチェック
+        float footY = y_ + height_;
+        if (map.IsSolidWorld(leftX, footY) ||
+            map.IsSolidWorld(midX, footY) ||
+            map.IsSolidWorld(rightX, footY)) {
+
+            // 着地した地面の上端を取得
+            int mapY = static_cast<int>(std::floor(footY / kMapChipSize));
+            y_ = static_cast<float>(mapY * kMapChipSize) - height_;
+
+            velocityY_ = 0.0f;
+            isGround_ = true;
+        }
+        else {
+            isGround_ = false;
+        }
+    }
+    else {
+        // ジャンプ上昇中：上辺の 左・中・右 をチェック（天井判定）
+        float headY = y_;
+        if (map.IsSolidWorld(leftX, headY) ||
+            map.IsSolidWorld(midX, headY) ||
+            map.IsSolidWorld(rightX, headY)) {
+
+            // 当たった天井の下端に合わせる
+            int mapY = static_cast<int>(std::floor(headY / kMapChipSize));
+            y_ = static_cast<float>((mapY + 1) * kMapChipSize);
+
+            velocityY_ = 0.0f;
+        }
+    }
+
+    // 画面上端
+    if (y_ < 0.0f) {
+        y_ = 0.0f;
+        velocityY_ = 0.0f;
+    }
+
+    // -----------------------------------------
+    // 3. 照準の操作
+    // -----------------------------------------
     if (isMouseWarped_) {
         // カーソルを中央へ戻した直後のフレームは、新しい中央座標を基準として記憶するだけにする
         preMouseX_ = mouseX;
@@ -108,7 +196,9 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
     aimX_ = std::clamp(aimX_, 0.0f, 1920.0f);
     aimY_ = std::clamp(aimY_, 0.0f, 1080.0f);
 
-    // 射撃
+    // -----------------------------------------
+    // 4. 射撃
+    // -----------------------------------------
     if (shotTimer_ > 0) {
         shotTimer_--;
     }
@@ -241,7 +331,9 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
         }
     }
 
-    //ビームの更新
+    // -----------------------------------------
+    // 5. ビームの更新
+    // -----------------------------------------
     for (int i = 0; i < kMaxBullets; i++) {
 
         if (!bullets_[i].isActive) {
@@ -255,37 +347,6 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
         if (bullets_[i].timer <= 0) {
             bullets_[i].isActive = false;
         }
-    }
-
-    // 重力 & 地面との当たり判定
-    velocityY_ += gravity_;
-    y_ += velocityY_;
-
-    if (velocityY_ >= 0.0f) {
-
-        float leftX = x_ + 1.0f;
-        float rightX = x_ + width_ - 1.0f;
-        float bottomY = y_ + height_;
-
-        if (map.IsSolidWorld(leftX, bottomY) ||
-            map.IsSolidWorld(rightX, bottomY)) {
-
-            // 着地した地面の上端を取得
-            int mapY = static_cast<int>(bottomY) / kMapChipSize;
-            y_ = static_cast<float>(mapY * kMapChipSize) - height_;
-
-            velocityY_ = 0.0f;
-            isGround_ = true;
-        }
-        else {
-            isGround_ = false;
-        }
-    }
-
-    // 画面上端
-    if (y_ < 0.0f) {
-        y_ = 0.0f;
-        velocityY_ = 0.0f;
     }
 }
 
