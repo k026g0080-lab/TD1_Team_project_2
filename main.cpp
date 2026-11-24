@@ -1,6 +1,7 @@
 #include <Novice.h>
 #include "player.h"
 #include "map.h"
+#include "boss.h"
 
 const char kWindowTitle[] = "タイトル";
 
@@ -23,6 +24,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	Player player;
 	player.Initialize();
 
+	Boss boss;
+	boss.Initialize();
+
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
 		// フレームの開始
@@ -37,6 +41,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		///
 
 		player.Update(keys, preKeys, map);
+		boss.Update(player);
 
 		///
 		/// ↑更新処理ここまで
@@ -50,15 +55,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 		player.Draw();
 
-		Novice::DrawBox(
-			1500,
-			340,
-			300,
-			300,
-			0.0f,
-			BLACK,
-			kFillModeSolid
-		);
+		boss.Draw();
 
 		///
 		/// ↑描画処理ここまで
