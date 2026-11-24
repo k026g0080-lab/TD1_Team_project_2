@@ -16,7 +16,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	Novice::SetMouseCursorVisibility(0);
 
 	Map map;
-
+	map.Initialize();
 	// キー入力結果を受け取る箱
 	char keys[256] = {0};
 	char preKeys[256] = {0};
@@ -42,6 +42,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 		player.Update(keys, preKeys, map);
 		boss.Update(player);
+		map.Update();
 
 		///
 		/// ↑更新処理ここまで
