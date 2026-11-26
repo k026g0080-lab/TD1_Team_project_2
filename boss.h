@@ -46,7 +46,7 @@ private:
 
 	// 移動用
 	float speedX_ = 0.0f;
-	float speedY_ = 4.0f;
+	float speedY_ = 0.0f;
 
 	// ステータス
 	int maxHp_ = 1000;

@@ -1,6 +1,6 @@
 #pragma once
-
 #include "map.h"
+class Enemy;
 
 struct BeamSegment {
     float startX;
@@ -25,7 +25,6 @@ struct Bullet {
 
     bool isActive;
 };
-
 class Player {
 public:
 
@@ -33,8 +32,13 @@ public:
     void Initialize();
 
     // 更新
-    void Update(const char* keys, const char* preKeys, const Map& map);
-
+    void Update(
+        const char* keys,
+        const char* preKeys,
+        const Map& map,
+        Enemy enemies[],
+        int enemyCount
+    );
     // 描画
     void Draw();
 

@@ -364,15 +364,15 @@ void Boss::Update(Player& player, const Map& map) {
 			}
 		}
 
-		y_ += speedY_;
-		if (hasValidMap && ResolveMapCollisionY(x_, y_, width_, height_, speedY_, map)) {
-			speedY_ *= -1.0f;
-		}
-
-		if (y_ < 100.0f) {
-			y_ = 100.0f;
-			speedY_ = std::abs(speedY_);
-		}
+		//y_ += speedY_;
+		//if (hasValidMap && ResolveMapCollisionY(x_, y_, width_, height_, speedY_, map)) {
+		//	speedY_ *= -1.0f;
+		//}
+		//
+		//if (y_ < 100.0f) {
+		//	y_ = 100.0f;
+		//	speedY_ = std::abs(speedY_);
+		//}
 		else if (y_ + height_ > 900.0f) {
 			y_ = 900.0f - height_;
 			speedY_ = -std::abs(speedY_);

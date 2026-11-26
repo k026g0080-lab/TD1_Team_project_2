@@ -34,6 +34,9 @@ void Map::Update() {
 
 // ランダムに地殻変動を起こす
 void Map::TriggerCrustalShift() {
+    // 地殻変動の回数を増やす
+    shiftCount_++;
+
     shiftEffectTimer_ = 15; // 15フレームだけブロックの色を変えて変動を分かりやすくする
 
     // 1. まず外周（上2行・下2行・左右1列）以外の内部を一旦リセット
