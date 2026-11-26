@@ -69,6 +69,7 @@ void Boss::Initialize() {
     hp_ = maxHp_;
     isAlive_ = true;
     damageTimer_ = 0;
+    weakDamageTimer_ = 0;
 }
 
 // 更新
@@ -87,10 +88,17 @@ void Boss::Update(Player& player) {
     if (damageTimer_ > 0) {
         damageTimer_--;
     }
+    if (weakDamageTimer_ > 0) {
+        weakDamageTimer_--;
+    }
 
     // 2. プレイヤーのビームとの当たり判定
     // ★ビームの見た目の太さの半分を指定（例：太さ20pxなら10.0f）
     const float beamRadius = 10.0f;
+
+    // 弱点の現在ワールド座標（ボス左上に追従）
+    const float weakX = x_ + weakOffsetX_;
+    const float weakY = y_ + weakOffsetY_;
 
     for (int i = 0; i < Player::kMaxBullets; i++) {
         Bullet& bullet = player.bullets_[i];
@@ -104,6 +112,19 @@ void Boss::Update(Player& player) {
         for (int j = 0; j < bullet.segmentCount; j++) {
             const BeamSegment& seg = bullet.segments[j];
 
+            // 先に弱点判定を行う（弱点ヒット時は高ダメージ）
+            if (CheckSegmentToBox(seg.startX, seg.startY, seg.endX, seg.endY, beamRadius, weakX, weakY, weakWidth_, weakHeight_)) {
+                hp_ -= 1 * weakDamageMultiplier_; // 毎フレーム当たるためダメージ量を調整（必要に応じて変更してください）
+                weakDamageTimer_ = 2;             // 弱点被弾時に白く光る時間
+
+                if (hp_ <= 0) {
+                    hp_ = 0;
+                    isAlive_ = false;
+                }
+                break; // 1本のビーム（複数反射）で同フレームに多重ヒットしないよう抜ける
+            }
+
+            // 弱点外はボス本体判定
             if (CheckSegmentToBox(seg.startX, seg.startY, seg.endX, seg.endY, beamRadius, x_, y_, width_, height_)) {
                 hp_ -= 1;         // 毎フレーム当たるためダメージ量を調整（必要に応じて変更してください）
                 damageTimer_ = 2; // 白く光る時間
@@ -133,6 +154,18 @@ void Boss::Draw() {
         static_cast<int>(height_),
         0.0f,
         color,
+        kFillModeSolid
+    );
+
+    // ボス左上の弱点（弱点被弾中は白、通常は黄色系）
+    unsigned int weakColor = (weakDamageTimer_ > 0) ? WHITE : 0xFFEE00FF;
+    Novice::DrawBox(
+        static_cast<int>(x_ + weakOffsetX_),
+        static_cast<int>(y_ + weakOffsetY_),
+        static_cast<int>(weakWidth_),
+        static_cast<int>(weakHeight_),
+        0.0f,
+        weakColor,
         kFillModeSolid
     );
 
