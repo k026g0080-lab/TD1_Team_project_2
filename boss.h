@@ -1,49 +1,67 @@
+
 #pragma once
 
-#include "player.h" // プレイヤーのビーム情報を受け取るため
+#include "player.h"
 
 class Boss {
 public:
-    // 初期化
-    void Initialize();
+	void Initialize();
+	void Update(Player& player);
+	void Draw();
 
-    // 更新（プレイヤーのビームとの当たり判定もここで行う）
-    void Update(Player& player);
-
-    // 描画
-    void Draw();
-
-    // 生存しているか
-    bool IsAlive() const { return isAlive_; }
+	bool IsAlive() const { return isAlive_; }
 
 private:
-    // ボスの行動パターン（ステート）
-    enum class State {
-        Normal,   // 通常移動
-        Charge,   // チャージ中（予兆）
-        Attack,   // ビーム発射中
-        Cooldown  // 攻撃後の硬直
-    };
+	enum class State {
+		Normal,
+		Charge,
+		Attack,
+		Cooldown
+	};
 
-    // ボスの座標・サイズ
-    float x_ = 1500.0f;
-    float y_ = 400.0f;
-    float width_ = 160.0f;
-    float height_ = 160.0f;
+	// ボスの座標・サイズ
+	float x_ = 1500.0f;
+	float y_ = 400.0f;
+	float width_ = 160.0f;
+	float height_ = 160.0f;
 
-    // 移動用
-    float speedY_ = 4.0f;
+	// 移動
+	float speedY_ = 4.0f;
 
-    // ステータス
-    int maxHp_ = 1000;
-    int hp_ = 1000;
-    bool isAlive_ = true;
+	// ステータス
+	int maxHp_ = 1000;
+	int hp_ = 1000;
+	bool isAlive_ = true;
 
-    // ダメージ演出（被弾時に一瞬白く光らせる用）
-    int damageTimer_ = 0;
+	int damageTimer_ = 0;
 
-    // チャージ攻撃用 
-    State state_ = State::Normal; // 現在の状態
-    int stateTimer_ = 0;          // 状態ごとの経過時間フレーム
-    float beamHeight_ = 100.0f;   // ボスビームの太さ（高さ）
+	// ステート
+	State state_ = State::Normal;
+	int stateTimer_ = 0;
+
+	// 追尾弾
+	struct HomingBullet {
+		float x;
+		float y;
+		float velocityX;
+		float velocityY;
+		float radius;
+		bool isActive;
+	};
+
+	static const int kMaxHomingBullets = 10;
+	HomingBullet bullets_[kMaxHomingBullets] = {};
+
+	// 弾の設定
+	float bulletSpeed_ = 8.0f;
+	float bulletRadius_ = 20.0f;
+	float homingStrength_ = 0.08f;
+
+	// 攻撃間隔
+	int shootInterval_ = 15;
+	int shootTimer_ = 0;
+
+	// チャージ攻撃用
+	float targetX_ = 0.0f;
+	float targetY_ = 0.0f;
 };
