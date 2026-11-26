@@ -7,8 +7,13 @@ public:
 	// 初期化
 	void Initialize();
 
+
+	// 更新（プレイヤーの接近制限・追尾弾・ビーム当たり判定もここで行う）
+	void Update(Player& player);
+
 	// 更新（マップの当たり判定とプレイヤーのビーム判定を行う）
 	void Update(Player& player, const Map& map);
+
 
 	// 描画
 	void Draw();
@@ -43,6 +48,10 @@ private:
 	float y_ = 400.0f;
 	float width_ = 160.0f;
 	float height_ = 160.0f;
+
+	// プレイヤーがボスのそばに行けないようにする接近制限ライン（攻撃は通過する）
+	float keepOutMarginX_ = 220.0f; // ボス左右の接近制限距離
+	float keepOutMarginY_ = 120.0f; // ボス上下の接近制限距離
 
 	// 移動用
 	float speedX_ = 0.0f;

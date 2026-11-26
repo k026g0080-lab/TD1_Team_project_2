@@ -76,7 +76,7 @@ namespace {
 		return true;
 	}
 
-	// 矩形同士の当たり判定（ボスビームとプレイヤー用）
+	// 矩形同士の当たり判定（ボスビーム・接近制限エリア・プレイヤー用）
 	bool CheckBoxToBox(float x1, float y1, float w1, float h1, float x2, float y2, float w2, float h2) {
 		return (x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2);
 	}
@@ -454,6 +454,61 @@ void Boss::Update(Player& player, const Map& map) {
 		break;
 	}
 
+
+	// ★ プレイヤーがボスのそばに行けないように接近制限エリアから押し戻す
+	// （プレイヤーのビーム攻撃は制限エリアを通過してボス・弱点に当たる）
+	{
+		float px = player.GetX();
+		float py = player.GetY();
+		float pw = player.GetWidth();
+		float ph = player.GetHeight();
+
+		float zoneLeft = x_ - keepOutMarginX_;
+		float zoneRight = x_ + width_ + keepOutMarginX_;
+		float zoneTop = y_ - keepOutMarginY_;
+		float zoneBottom = y_ + height_ + keepOutMarginY_;
+
+		if (CheckBoxToBox(px, py, pw, ph, zoneLeft, zoneTop, zoneRight - zoneLeft, zoneBottom - zoneTop)) {
+			float overlapLeft = (px + pw) - zoneLeft;
+			float overlapRight = zoneRight - px;
+			float overlapTop = (py + ph) - zoneTop;
+			float overlapBottom = zoneBottom - py;
+
+			float minOverlap = overlapLeft;
+			int dir = 0; // 0:左へ, 1:右へ, 2:上へ, 3:下へ
+
+			if (overlapRight < minOverlap) {
+				minOverlap = overlapRight;
+				dir = 1;
+			}
+			if (overlapTop < minOverlap) {
+				minOverlap = overlapTop;
+				dir = 2;
+			}
+			if (overlapBottom < minOverlap) {
+				minOverlap = overlapBottom;
+				dir = 3;
+			}
+
+			if (dir == 0) {
+				px = zoneLeft - pw;
+			}
+			else if (dir == 1) {
+				px = zoneRight;
+			}
+			else if (dir == 2) {
+				py = zoneTop - ph;
+			}
+			else if (dir == 3) {
+				py = zoneBottom;
+			}
+
+			// Player側の座標セッターに合わせて有効化してください
+			// 例: player.SetPosition(px, py);
+			(void)px;
+			(void)py;
+		}
+
 	if (hasValidMap) {
 		ResolveOverlapWithMap(x_, y_, width_, height_, map);
 	}
@@ -564,6 +619,7 @@ void Boss::Update(Player& player, const Map& map) {
 	}
 
 	// 4. プレイヤーのビームとの当たり判定
+	// ★ 接近制限エリアは通過し、ボス本体または孤立弱点に直接ヒットする
 	const float beamRadius = 10.0f;
 	for (int i = 0; i < Player::kMaxBullets; i++) {
 		Bullet& bullet = player.bullets_[i];
@@ -681,6 +737,20 @@ void Boss::Draw() {
 		color,
 		kFillModeSolid
 	);
+
+
+	// プレイヤー接近制限ライン（攻撃は通過する境界線の目安）
+	Novice::DrawBox(
+		static_cast<int>(x_ - keepOutMarginX_),
+		static_cast<int>(y_ - keepOutMarginY_),
+		static_cast<int>(width_ + keepOutMarginX_ * 2.0f),
+		static_cast<int>(height_ + keepOutMarginY_ * 2.0f),
+		0.0f,
+		0xFF444466,
+		kFillModeWireFrame
+	);
+
+	// 5. バリアの描画
 
 	// バリアと孤立弱点の描画
 	if (hasBarrier_) {
