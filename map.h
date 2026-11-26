@@ -33,12 +33,16 @@ public:
 
     // ワールド座標から当たり判定を取得
     bool IsSolidWorld(float x, float y) const;
-
+    // 地殻変動の回数を取得
+    int GetShiftCount() const {
+        return shiftCount_;
+    }
 private:
-
+    // 地殻変動が発生した回数
+    int shiftCount_ = 0;
     // 地殻変動のタイマー（60fps想定で 300 = 5秒ごとに変動）
-    int shiftInterval_ = 300;
-    int shiftTimer_ = 300;
+    int shiftInterval_ = 600;
+    int shiftTimer_ = 600;
 
     // 変動直後の画面フラッシュ・演出用タイマー
     int shiftEffectTimer_ = 0;
