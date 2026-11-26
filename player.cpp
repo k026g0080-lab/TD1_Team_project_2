@@ -1,4 +1,5 @@
 #include "player.h"
+#include "enemy.h"
 #include <Novice.h>
 #define NOMINMAX
 #include <Windows.h>
@@ -33,7 +34,13 @@ void Player::Initialize() {
 }
 
 // 更新
-void Player::Update(const char* keys, const char* preKeys, const Map& map) {
+void Player::Update(
+    const char* keys,
+    const char* preKeys,
+    const Map& map,
+    Enemy enemies[],
+    int enemyCount
+) {
 
     while (map.IsSolidWorld(x_ + width_ / 2.0f, y_ + height_ / 2.0f) && y_ > kMapChipSize * 2) {
         y_ -= static_cast<float>(kMapChipSize);
@@ -254,7 +261,11 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
                     segment.endY = currentY;
 
                     bool hitWall = false;
+                    bool hitEnemy = false;
                     bool hitScreenEdge = false;
+
+                    int hitEnemyIndex = -1;
+
                     float traveled = 0.0f;
 
                     // ビームの進行方向を調べる
@@ -281,6 +292,20 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
                             break;
                         }
 
+                        // 敵との当たり判定
+                        for (int enemyIndex = 0; enemyIndex < enemyCount; enemyIndex++) {
+
+                            if (enemies[enemyIndex].ContainsPoint(nextX, nextY)) {
+                                hitEnemy = true;
+                                hitEnemyIndex = enemyIndex;
+                                break;
+                            }
+                        }
+
+                        if (hitEnemy) {
+                            break;
+                        }
+
                         currentX = nextX;
                         currentY = nextY;
                         traveled += step;
@@ -295,7 +320,7 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
                     remainingRange = beamRange_;
 
                     // 画面外、または射程終了
-                    if (hitScreenEdge || !hitWall) {
+                    if (hitScreenEdge || (!hitWall && !hitEnemy)) {
                         break;
                     }
 
@@ -305,20 +330,43 @@ void Player::Update(const char* keys, const char* preKeys, const Map& map) {
                     }
 
                     // X方向とY方向の衝突を確認
-                    bool hitX = map.IsSolidWorld(currentX + directionX * 2.0f, currentY);
-                    bool hitY = map.IsSolidWorld(currentX, currentY + directionY * 2.0f);
+                    bool hitX = map.IsSolidWorld(
+                        currentX + directionX * 2.0f,
+                        currentY
+                    );
 
-                    // 左右の壁
+                    bool hitY = map.IsSolidWorld(
+                        currentX,
+                        currentY + directionY * 2.0f
+                    );
+
+                    // 敵に当たった場合
+                    if (hitEnemyIndex >= 0) {
+
+                        if (enemies[hitEnemyIndex].ContainsPoint(
+                            currentX + directionX * 2.0f,
+                            currentY
+                        )) {
+                            hitX = true;
+                        }
+
+                        if (enemies[hitEnemyIndex].ContainsPoint(
+                            currentX,
+                            currentY + directionY * 2.0f
+                        )) {
+                            hitY = true;
+                        }
+                    }
+
+                    // 反射
                     if (hitX) {
                         directionX *= -1.0f;
                     }
 
-                    // 床・天井
                     if (hitY) {
                         directionY *= -1.0f;
                     }
 
-                    // 角に当たった場合
                     if (!hitX && !hitY) {
                         directionX *= -1.0f;
                         directionY *= -1.0f;
