@@ -10,16 +10,17 @@ const char kWindowTitle[] = "タイトル";
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
-	// ライブラリの初期化
+	// ライブラリの初期
 	Novice::Initialize(kWindowTitle, 1920, 1080);
 
 	Novice::SetMouseCursorVisibility(0);
 
 	Map map;
 	map.Initialize();
+
 	// キー入力結果を受け取る箱
-	char keys[256] = {0};
-	char preKeys[256] = {0};
+	char keys[256] = { 0 };
+	char preKeys[256] = { 0 };
 
 	Player player;
 	player.Initialize();
@@ -41,7 +42,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		///
 
 		player.Update(keys, preKeys, map);
-		boss.Update(player);
+		boss.Update(player, map);
 		map.Update();
 
 		///
