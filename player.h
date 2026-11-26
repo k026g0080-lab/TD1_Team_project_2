@@ -60,7 +60,16 @@ public:
 
     // 最大反射回数
     int maxReflections_ = 5;
+    // player.h の public: の中に追加
 
+    // 座標・サイズ取得用ゲッター
+    float GetX() const { return x_; }
+    float GetY() const { return y_; }
+    float GetWidth() const { return width_; }
+    float GetHeight() const { return height_; }
+
+    
+   
 private:
 
     // プレイヤーの座標
