@@ -1,183 +1,293 @@
+
 #include "boss.h"
 #include <Novice.h>
 #include <algorithm>
 #include <cmath>
 
-namespace {
-    // 太さ(radius)を持つ線分 (x1, y1)-(x2, y2) と 矩形 (rx, ry, rw, rh) の正確な当たり判定（スラブ法）
-    bool CheckSegmentToBox(float x1, float y1, float x2, float y2, float radius, float rx, float ry, float rw, float rh) {
-        // ビームの太さ（半径）分だけ、ボスの当たり判定矩形を上下左右に広げる
-        float minX = rx - radius;
-        float maxX = rx + rw + radius;
-        float minY = ry - radius;
-        float maxY = ry + rh + radius;
-
-        float dx = x2 - x1;
-        float dy = y2 - y1;
-
-        float tMin = 0.0f;
-        float tMax = 1.0f;
-
-        // X軸の交差範囲を計算
-        if (std::abs(dx) < 1e-6f) {
-            if (x1 < minX || x1 > maxX) {
-                return false;
-            }
-        }
-        else {
-            float invDx = 1.0f / dx;
-            float t1 = (minX - x1) * invDx;
-            float t2 = (maxX - x1) * invDx;
-            if (t1 > t2) {
-                std::swap(t1, t2);
-            }
-            tMin = (std::max)(tMin, t1);
-            tMax = (std::min)(tMax, t2);
-            if (tMin > tMax) {
-                return false;
-            }
-        }
-
-        // Y軸の交差範囲を計算
-        if (std::abs(dy) < 1e-6f) {
-            if (y1 < minY || y1 > maxY) {
-                return false;
-            }
-        }
-        else {
-            float invDy = 1.0f / dy;
-            float t1 = (minY - y1) * invDy;
-            float t2 = (maxY - y1) * invDy;
-            if (t1 > t2) {
-                std::swap(t1, t2);
-            }
-            tMin = (std::max)(tMin, t1);
-            tMax = (std::min)(tMax, t2);
-            if (tMin > tMax) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-}
-
 // 初期化
 void Boss::Initialize() {
-    x_ = 1500.0f;
-    y_ = 400.0f;
-    hp_ = maxHp_;
-    isAlive_ = true;
-    damageTimer_ = 0;
-    weakDamageTimer_ = 0;
+	x_ = 1500.0f;
+	y_ = 400.0f;
+
+	hp_ = maxHp_;
+	isAlive_ = true;
+	damageTimer_ = 0;
+
+	state_ = State::Normal;
+	stateTimer_ = 180;
+
+	shootTimer_ = 0;
+
+	for (int i = 0; i < kMaxHomingBullets; i++) {
+		bullets_[i].isActive = false;
+	}
 }
 
 // 更新
 void Boss::Update(Player& player) {
-    if (!isAlive_) {
-        return;
-    }
 
-    // 1. 上下に浮遊移動（画面端で折り返し）
-    y_ += speedY_;
-    if (y_ < 100.0f || y_ + height_ > 900.0f) {
-        speedY_ *= -1.0f;
-    }
+	if (!isAlive_) {
+		return;
+	}
 
-    // 被弾フラッシュタイマー減少
-    if (damageTimer_ > 0) {
-        damageTimer_--;
-    }
-    if (weakDamageTimer_ > 0) {
-        weakDamageTimer_--;
-    }
+	stateTimer_--;
 
-    // 2. プレイヤーのビームとの当たり判定
-    // ★ビームの見た目の太さの半分を指定（例：太さ20pxなら10.0f）
-    const float beamRadius = 10.0f;
+	switch (state_) {
 
-    // 弱点の現在ワールド座標（ボス左上に追従）
-    const float weakX = x_ + weakOffsetX_;
-    const float weakY = y_ + weakOffsetY_;
+	case State::Normal:
 
-    for (int i = 0; i < Player::kMaxBullets; i++) {
-        Bullet& bullet = player.bullets_[i];
+		// 上下移動
+		y_ += speedY_;
 
-        // ビームが出ている間は常に当たり判定を行う
-        if (!bullet.isActive) {
-            continue;
-        }
+		if (y_ < 100.0f || y_ + height_ > 900.0f) {
+			speedY_ *= -1.0f;
+		}
 
-        // 反射したすべての線分をチェック
-        for (int j = 0; j < bullet.segmentCount; j++) {
-            const BeamSegment& seg = bullet.segments[j];
+		// チャージ開始
+		if (stateTimer_ <= 0) {
 
-            // 先に弱点判定を行う（弱点ヒット時は高ダメージ）
-            if (CheckSegmentToBox(seg.startX, seg.startY, seg.endX, seg.endY, beamRadius, weakX, weakY, weakWidth_, weakHeight_)) {
-                hp_ -= 1 * weakDamageMultiplier_; // 毎フレーム当たるためダメージ量を調整（必要に応じて変更してください）
-                weakDamageTimer_ = 2;             // 弱点被弾時に白く光る時間
+			state_ = State::Charge;
+			stateTimer_ = 90;
 
-                if (hp_ <= 0) {
-                    hp_ = 0;
-                    isAlive_ = false;
-                }
-                break; // 1本のビーム（複数反射）で同フレームに多重ヒットしないよう抜ける
-            }
+			// プレイヤーの位置を記録
+			targetX_ = player.GetX() + player.GetWidth() / 2.0f;
+			targetY_ = player.GetY() + player.GetHeight() / 2.0f;
+		}
 
-            // 弱点外はボス本体判定
-            if (CheckSegmentToBox(seg.startX, seg.startY, seg.endX, seg.endY, beamRadius, x_, y_, width_, height_)) {
-                hp_ -= 1;         // 毎フレーム当たるためダメージ量を調整（必要に応じて変更してください）
-                damageTimer_ = 2; // 白く光る時間
+		break;
 
-                if (hp_ <= 0) {
-                    hp_ = 0;
-                    isAlive_ = false;
-                }
-                break; // 1本のビーム（複数反射）で同フレームに多重ヒットしないよう抜ける
-            }
-        }
-    }
+	case State::Charge:
+
+		// チャージ終了
+		if (stateTimer_ <= 0) {
+
+			state_ = State::Attack;
+			stateTimer_ = 120;
+			shootTimer_ = 0;
+		}
+
+		break;
+
+	case State::Attack:
+
+		// 一定間隔で追尾弾を発射
+		shootTimer_--;
+
+		if (shootTimer_ <= 0) {
+
+			for (int i = 0; i < kMaxHomingBullets; i++) {
+
+				if (!bullets_[i].isActive) {
+
+					// ボスの中心
+					float startX = x_;
+					float startY = y_ + height_ / 2.0f;
+
+					// プレイヤーの中心
+					float playerX =
+						player.GetX() + player.GetWidth() / 2.0f;
+
+					float playerY =
+						player.GetY() + player.GetHeight() / 2.0f;
+
+					// 発射方向
+					float dx = playerX - startX;
+					float dy = playerY - startY;
+
+					float length = std::sqrt(dx * dx + dy * dy);
+
+					if (length > 0.0f) {
+						dx /= length;
+						dy /= length;
+					}
+
+					// 弾を初期化
+					bullets_[i].x = startX;
+					bullets_[i].y = startY;
+
+					bullets_[i].velocityX = dx * bulletSpeed_;
+					bullets_[i].velocityY = dy * bulletSpeed_;
+
+					bullets_[i].radius = bulletRadius_;
+					bullets_[i].isActive = true;
+
+					break;
+				}
+			}
+
+			shootTimer_ = shootInterval_;
+		}
+
+		// 攻撃終了
+		if (stateTimer_ <= 0) {
+
+			state_ = State::Cooldown;
+			stateTimer_ = 60;
+		}
+
+		break;
+
+	case State::Cooldown:
+
+		if (stateTimer_ <= 0) {
+
+			state_ = State::Normal;
+			stateTimer_ = 180;
+		}
+
+		break;
+	}
+
+	// 追尾弾の更新
+	for (int i = 0; i < kMaxHomingBullets; i++) {
+
+		HomingBullet& bullet = bullets_[i];
+
+		if (!bullet.isActive) {
+			continue;
+		}
+
+
+
+		// 移動
+		bullet.x += bullet.velocityX;
+		bullet.y += bullet.velocityY;
+
+		// 画面外に出たら消す
+		if (bullet.x < -100.0f ||
+			bullet.x > 2020.0f ||
+			bullet.y < -100.0f ||
+			bullet.y > 1180.0f) {
+
+			bullet.isActive = false;
+			continue;
+		}
+
+		// プレイヤーとの当たり判定
+		float playerLeft = player.GetX();
+		float playerRight = player.GetX() + player.GetWidth();
+
+		float playerTop = player.GetY();
+		float playerBottom = player.GetY() + player.GetHeight();
+
+		if (bullet.x + bullet.radius > playerLeft &&
+			bullet.x - bullet.radius < playerRight &&
+			bullet.y + bullet.radius > playerTop &&
+			bullet.y - bullet.radius < playerBottom) {
+
+			// 命中時の処理
+			bullet.isActive = false;
+		}
+	}
+
+
+
+
+
+		if (!bullet.isActive) {
+			continue;
+		}
+
+		for (int j = 0; j < bullet.segmentCount; j++) {
+
+			const BeamSegment& seg = bullet.segments[j];
+
+
+
+			if (maxX + 10.0f >= x_ &&
+				minX - 10.0f <= x_ + width_ &&
+				maxY + 10.0f >= y_ &&
+				minY - 10.0f <= y_ + height_) {
+
+				hp_--;
+				damageTimer_ = 2;
+
+				if (hp_ <= 0) {
+					hp_ = 0;
+					isAlive_ = false;
+				}
+
+				break;
+			}
+		}
+	}
 }
 
 // 描画
 void Boss::Draw() {
-    if (!isAlive_) {
-        return;
-    }
 
-    // ボス本体（被弾中は白、通常は紫）
-    unsigned int color = (damageTimer_ > 0) ? WHITE : 0x8800FFFF;
-    Novice::DrawBox(
-        static_cast<int>(x_),
-        static_cast<int>(y_),
-        static_cast<int>(width_),
-        static_cast<int>(height_),
-        0.0f,
-        color,
-        kFillModeSolid
-    );
+	if (!isAlive_) {
+		return;
+	}
 
-    // ボス左上の弱点（弱点被弾中は白、通常は黄色系）
-    unsigned int weakColor = (weakDamageTimer_ > 0) ? WHITE : 0xFFEE00FF;
-    Novice::DrawBox(
-        static_cast<int>(x_ + weakOffsetX_),
-        static_cast<int>(y_ + weakOffsetY_),
-        static_cast<int>(weakWidth_),
-        static_cast<int>(weakHeight_),
-        0.0f,
-        weakColor,
-        kFillModeSolid
-    );
+	float centerY = y_ + height_ / 2.0f;
 
-    // HPバーの描画（画面上部中央）
-    int barMaxWidth = 800;
-    int barHeight = 24;
-    int barX = (1920 - barMaxWidth) / 2;
-    int barY = 40;
+	// チャージ中
+	if (state_ == State::Charge) {
+
+		Novice::DrawEllipse(
+			static_cast<int>(x_),
+			static_cast<int>(centerY),
+			60,
+			60,
+			0.0f,
+			0xFFFF00FF,
+			kFillModeSolid
+		);
+	}
+
+	// 追尾弾の描画
+	for (int i = 0; i < kMaxHomingBullets; i++) {
+
+		const HomingBullet& bullet = bullets_[i];
+
+		if (!bullet.isActive) {
+			continue;
+		}
+
+		// 外側
+		Novice::DrawEllipse(
+			static_cast<int>(bullet.x),
+			static_cast<int>(bullet.y),
+			static_cast<int>(bullet.radius),
+			static_cast<int>(bullet.radius),
+			0.0f,
+			RED,
+			kFillModeSolid
+		);
+
+		// 中心
+		Novice::DrawEllipse(
+			static_cast<int>(bullet.x),
+			static_cast<int>(bullet.y),
+			8,
+			8,
+			0.0f,
+			WHITE,
+			kFillModeSolid
+		);
+	}
+
+	// ボスの色
+	unsigned int color = 0x8800FFFF;
+
+	if (damageTimer_ > 0) {
+		color = WHITE;
+	} else if (state_ == State::Charge) {
+		color = 0xFFFF00FF;
+	}
+
+	Novice::DrawBox(
+		static_cast<int>(x_),
+		static_cast<int>(y_),
+		static_cast<int>(width_),
+		static_cast<int>(height_),
+		0.0f,
+		color,
+		kFillModeSolid
+	);
+
+
 
     // 背景（黒）
     Novice::DrawBox(barX - 4, barY - 4, barMaxWidth + 8, barHeight + 8, 0.0f, BLACK, kFillModeSolid);
-    // 現在のHP（赤）
-    int currentBarWidth = static_cast<int>(barMaxWidth * (static_cast<float>(hp_) / maxHp_));
-    Novice::DrawBox(barX, barY, currentBarWidth, barHeight, 0.0f, RED, kFillModeSolid);
-}
