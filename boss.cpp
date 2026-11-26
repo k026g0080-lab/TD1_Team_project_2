@@ -364,15 +364,15 @@ void Boss::Update(Player& player, const Map& map) {
 			}
 		}
 
-		//y_ += speedY_;
-		//if (hasValidMap && ResolveMapCollisionY(x_, y_, width_, height_, speedY_, map)) {
-		//	speedY_ *= -1.0f;
-		//}
-		//
-		//if (y_ < 100.0f) {
-		//	y_ = 100.0f;
-		//	speedY_ = std::abs(speedY_);
-		//}
+		y_ += speedY_;
+		if (hasValidMap && ResolveMapCollisionY(x_, y_, width_, height_, speedY_, map)) {
+			speedY_ *= -1.0f;
+		}
+
+		if (y_ < 100.0f) {
+			y_ = 100.0f;
+			speedY_ = std::abs(speedY_);
+		}
 		else if (y_ + height_ > 900.0f) {
 			y_ = 900.0f - height_;
 			speedY_ = -std::abs(speedY_);
@@ -454,7 +454,6 @@ void Boss::Update(Player& player, const Map& map) {
 		break;
 	}
 
-
 	// ★ プレイヤーがボスのそばに行けないように接近制限エリアから押し戻す
 	// （プレイヤーのビーム攻撃は制限エリアを通過してボス・弱点に当たる）
 	{
@@ -508,6 +507,7 @@ void Boss::Update(Player& player, const Map& map) {
 			(void)px;
 			(void)py;
 		}
+	}
 
 	if (hasValidMap) {
 		ResolveOverlapWithMap(x_, y_, width_, height_, map);
@@ -738,7 +738,6 @@ void Boss::Draw() {
 		kFillModeSolid
 	);
 
-
 	// プレイヤー接近制限ライン（攻撃は通過する境界線の目安）
 	Novice::DrawBox(
 		static_cast<int>(x_ - keepOutMarginX_),
@@ -749,8 +748,6 @@ void Boss::Draw() {
 		0xFF444466,
 		kFillModeWireFrame
 	);
-
-	// 5. バリアの描画
 
 	// バリアと孤立弱点の描画
 	if (hasBarrier_) {

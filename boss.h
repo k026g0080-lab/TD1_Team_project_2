@@ -7,13 +7,8 @@ public:
 	// 初期化
 	void Initialize();
 
-
-	// 更新（プレイヤーの接近制限・追尾弾・ビーム当たり判定もここで行う）
-	void Update(Player& player);
-
-	// 更新（マップの当たり判定とプレイヤーのビーム判定を行う）
+	// 更新（マップの当たり判定・プレイヤー接近制限・追尾弾・ビーム当たり判定を行う）
 	void Update(Player& player, const Map& map);
-
 
 	// 描画
 	void Draw();
@@ -55,7 +50,7 @@ private:
 
 	// 移動用
 	float speedX_ = 0.0f;
-	float speedY_ = 0.0f;
+	float speedY_ = 4.0f;
 
 	// ステータス
 	int maxHp_ = 1000;
